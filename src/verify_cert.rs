@@ -41,6 +41,7 @@ impl<'a, 'p: 'a> ChainOptions<'a, 'p> {
         time: UnixTime,
         verify_path: Option<&dyn Fn(&VerifiedPath<'_>) -> Result<(), Error>>,
     ) -> Result<VerifiedPath<'p>, Error> {
+        println!("build_chain");
         let mut path = PartialPath::new(end_entity);
         match self.build_chain_inner(&mut path, time, verify_path, 0, &mut Budget::default()) {
             Ok(anchor) => Ok(VerifiedPath::new(end_entity, anchor, path)),
@@ -58,10 +59,12 @@ impl<'a, 'p: 'a> ChainOptions<'a, 'p> {
     ) -> Result<&'p TrustAnchor<'p>, ControlFlow<Error, Error>> {
         let role = path.node().role();
 
+        println!("check_issuer_independent_properties");
         check_issuer_independent_properties(path.head(), time, role, sub_ca_count, self.eku.inner)?;
 
         // TODO: HPKP checks.
 
+        println!("loop_while_non_fatal_error");
         let result = loop_while_non_fatal_error(
             Error::UnknownIssuer,
             self.trust_anchors,
@@ -74,7 +77,9 @@ impl<'a, 'p: 'a> ChainOptions<'a, 'p> {
                 // TODO: check_distrust(trust_anchor_subject, trust_anchor_spki)?;
 
                 let node = path.node();
+                println!("check_signed_chain");
                 self.check_signed_chain(&node, trust_anchor, budget)?;
+                println!("check_signed_chain_name_constraints");
                 check_signed_chain_name_constraints(&node, trust_anchor, budget)?;
 
                 let verify = match verify_path {
@@ -87,7 +92,7 @@ impl<'a, 'p: 'a> ChainOptions<'a, 'p> {
                     intermediates: Intermediates::Borrowed(&path.intermediates[..path.used]),
                     anchor: trust_anchor,
                 };
-
+                println!("verify");
                 match verify(&candidate) {
                     Ok(()) => Ok(trust_anchor),
                     Err(err) => Err(ControlFlow::Continue(err)),
@@ -105,7 +110,9 @@ impl<'a, 'p: 'a> ChainOptions<'a, 'p> {
             Err(ControlFlow::Continue(err)) => err,
         };
 
+        println!("loop_while_non_fatal_error");
         loop_while_non_fatal_error(err, self.intermediate_certs, |cert_der| {
+            println!("Cert::from_der");
             let potential_issuer = Cert::from_der(untrusted::Input::from(cert_der))?;
             if !public_values_eq(potential_issuer.subject, path.head().issuer) {
                 return Err(Error::UnknownIssuer.into());
@@ -119,13 +126,20 @@ impl<'a, 'p: 'a> ChainOptions<'a, 'p> {
                 return Err(Error::UnknownIssuer.into());
             }
 
+            println!("next_sub_ca_count");
             let next_sub_ca_count = match role {
                 Role::EndEntity => sub_ca_count,
                 Role::Issuer => sub_ca_count + 1,
             };
 
+
+            println!("consume_build_chain_call");
             budget.consume_build_chain_call()?;
+
+            println!("push");
             path.push(potential_issuer)?;
+
+            println!("build_chain_inner");
             let result = self.build_chain_inner(path, time, verify_path, next_sub_ca_count, budget);
             if result.is_err() {
                 path.pop();
