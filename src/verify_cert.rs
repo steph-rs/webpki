@@ -159,6 +159,9 @@ impl<'a, 'p: 'a> ChainOptions<'a, 'p> {
         let mut issuer_subject = untrusted::Input::from(trust_anchor.subject.as_ref());
         let mut issuer_key_usage = None; // TODO(XXX): Consider whether to track TrustAnchor KU.
         for path in path.iter() {
+            println!("verify_signed_data with path: {:?}", path.index);
+            println!("verify_signed_data with path: {:?}", path.cert.spki);
+            println!("supported sig algs: {:?}", self.supported_sig_algs);
             signed_data::verify_signed_data(
                 self.supported_sig_algs,
                 spki_value,

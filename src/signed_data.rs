@@ -159,6 +159,7 @@ pub(crate) fn verify_signed_data(
     signed_data: &SignedData,
     budget: &mut Budget,
 ) -> Result<(), Error> {
+    println!("verify_signed_data");
     budget.consume_signature()?;
 
     // We need to verify the signature in `signed_data` using the public key
@@ -185,6 +186,10 @@ pub(crate) fn verify_signed_data(
         .iter()
         .filter(|alg| alg.signature_alg_id().as_ref() == signed_data.algorithm.as_slice_less_safe())
     {
+        println!("verify_signature 1 with supported_alg: {:?}", supported_alg);
+        println!("verify_signature 2 with spki_value: {:?}", spki_value);
+        println!("verify_signature 3 with signed_data.data: {:?}", signed_data.data);
+        println!("verify_signature 4 with signed_data.signature: {:?}", signed_data.signature);
         match verify_signature(
             *supported_alg,
             spki_value,
@@ -214,10 +219,12 @@ pub(crate) fn verify_signature(
     msg: untrusted::Input,
     signature: untrusted::Input,
 ) -> Result<(), Error> {
+    println!("verify_signature 2");
     let spki = der::read_all::<SubjectPublicKeyInfo>(spki_value)?;
     if signature_alg.public_key_alg_id().as_ref() != spki.algorithm_id_value.as_slice_less_safe() {
         return Err(Error::UnsupportedSignatureAlgorithmForPublicKey);
     }
+    println!("verify_signature 3");
 
     signature_alg
         .verify_signature(
